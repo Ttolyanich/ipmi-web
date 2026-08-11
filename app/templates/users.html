@@ -69,11 +69,14 @@
                 </td>
                 <td style="text-align: right;">
                     <div class="row" style="justify-content: flex-end; gap: 12px;">
-                        <form method="post" action="{{ url_for('auth.toggle_user', user_id=row.id) }}">
+                        <form method="post" action="{{ url_for('auth.toggle_user', user_id=row.id) }}"
+                              {% if not row.disabled %}onsubmit="return confirm('Отключить учетную запись {{ row.username }}?')"{% endif %}>
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="button link {{ 'ok' if row.disabled else 'danger' }}">
-                                {{ 'включить' if row.disabled else 'отключить' }}
-                            </button>
+                            {% if row.disabled %}
+                                <button type="submit" class="button secondary" style="padding: 4px 10px; font-size: 12px;">Включить</button>
+                            {% else %}
+                                <button type="submit" class="button danger" style="padding: 4px 10px; font-size: 12px;">Отключить</button>
+                            {% endif %}
                         </form>
                         
                         <form method="post" action="{{ url_for('auth.reset_password', user_id=row.id) }}" class="row" style="gap: 6px;">
