@@ -134,6 +134,12 @@ def render() -> str:
 
 
 def main() -> int:
+    import os
+
+    # Разовой команде планировщик не нужен: он бы поднял фоновые задачи на
+    # доли секунды и в худшем случае успел дёрнуть опрос BMC.
+    os.environ["ENABLE_SCHEDULER"] = "0"
+
     from . import create_app
 
     app = create_app()
