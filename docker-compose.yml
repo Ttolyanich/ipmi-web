@@ -1,0 +1,20 @@
+services:
+  # Раздача библиотеки ISO по SMB для Virtual Media -> CD-ROM Image.
+  #
+  # network_mode: host обязателен. При публикации порта через "ports:" трафик
+  # идёт через DNAT и цепочку forward, куда Docker сам вписывает ACCEPT, —
+  # правила фильтрации в input его не увидят, и 445 окажется открыт всему
+  # интернету. См. DECISIONS.md.
+  samba:
+    build: ./docker/samba
+    container_name: ipmi-smb
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      # Пароль задаётся в .env, в репозиторий не попадает.
+      SMB_USER: ${SMB_USER:-ikvm}
+      SMB_PASS: ${SMB_PASS:?SMB_PASS не задан, создай .env}
+    volumes:
+      - ${ISO_DIR:-/opt/iso}:/srv/iso:ro
+      # Конфиг томом, чтобы править список разрешённых адресов без пересборки.
+      - ./docker/samba/smb.conf:/etc/samba/smb.conf:ro
