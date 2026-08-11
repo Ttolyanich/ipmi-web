@@ -87,6 +87,14 @@ class Config:
     # их вечно незачем.
     LOGIN_ATTEMPT_RETENTION_DAYS = _int("LOGIN_ATTEMPT_RETENTION_DAYS", 7)
 
+    # Прокси консолей. CONSOLE_HOST — то самое имя, по которому открывается
+    # панель: браузер отдаёт сессию BMC только на тот же хост, отличаться
+    # должен лишь порт. Порт закрепляется за сервером в его карточке.
+    CONSOLE_HOST = os.environ.get("CONSOLE_HOST", "")
+    CONSOLE_PORT_BASE = _int("CONSOLE_PORT_BASE", 7001)
+    CONSOLE_SSL_CERT = os.environ.get("CONSOLE_SSL_CERT", "")
+    CONSOLE_SSL_KEY = os.environ.get("CONSOLE_SSL_KEY", "")
+
     MAX_CONTENT_LENGTH = None  # загрузка идёт чанками, лимит не нужен
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
