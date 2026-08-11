@@ -27,7 +27,10 @@ def get_driver(server) -> BmcDriver:
         server.address,
         server.bmc_user,
         decrypt(server.bmc_password_enc),
+        timeout=current_app.config.get("BMC_HTTP_TIMEOUT", 15),
         cipher_suite=current_app.config.get("IPMI_CIPHER_SUITE", "3"),
+        ipmi_interval=current_app.config.get("BMC_IPMI_INTERVAL", 3),
+        ipmi_retries=current_app.config.get("BMC_IPMI_RETRIES", 2),
     )
 
 

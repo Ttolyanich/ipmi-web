@@ -81,6 +81,19 @@ def upload_init():
             400,
         )
 
+    # Отказать сразу дешевле, чем оборвать заливку на девяноста процентах.
+    available = library.free_space()
+    if size and available < size * 1.05:
+        return (
+            jsonify(
+                error=(
+                    f"Не хватит места: нужно ~{size / 1e9:.1f} ГБ, "
+                    f"свободно {available / 1e9:.1f} ГБ"
+                )
+            ),
+            507,
+        )
+
     upload_id = secrets.token_hex(8)
     open(os.path.join(library.upload_dir(), upload_id), "wb").close()
     return jsonify(upload_id=upload_id, filename=filename, offset=0)

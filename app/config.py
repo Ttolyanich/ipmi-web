@@ -72,6 +72,17 @@ class Config:
     # рекомендуемая настройка. Симптом — «invalid role».
     IPMI_CIPHER_SUITE = os.environ.get("IPMI_CIPHER_SUITE", "3")
 
+    # Карточка сервера опрашивает BMC синхронно при каждом открытии, а нужна
+    # она чаще всего тогда, когда сервер лежит. Поэтому ждать долго нельзя:
+    # худший случай здесь — около 25 секунд, а не полторы минуты.
+    BMC_HTTP_TIMEOUT = _int("BMC_HTTP_TIMEOUT", 15)
+    BMC_IPMI_INTERVAL = _int("BMC_IPMI_INTERVAL", 3)
+    BMC_IPMI_RETRIES = _int("BMC_IPMI_RETRIES", 2)
+
+    # Записи о попытках входа нужны только на время окна блокировки; хранить
+    # их вечно незачем.
+    LOGIN_ATTEMPT_RETENTION_DAYS = _int("LOGIN_ATTEMPT_RETENTION_DAYS", 7)
+
     MAX_CONTENT_LENGTH = None  # загрузка идёт чанками, лимит не нужен
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

@@ -45,11 +45,19 @@ class SupermicroDriver(BmcDriver):
         address: str,
         username: str,
         password: str,
-        timeout: int = 30,
+        timeout: int = 15,
         cipher_suite: str = "3",
+        ipmi_interval: int = 3,
+        ipmi_retries: int = 2,
     ):
         super().__init__(address, username, password)
+        # Таймауты держим короткими сознательно. Карточка сервера опрашивает
+        # BMC синхронно при каждом открытии, а нужна она чаще всего тогда,
+        # когда сервер уже лежит. Полторы минуты ожидания в этот момент —
+        # худшее из возможных поведений.
         self.timeout = timeout
+        self.ipmi_interval = ipmi_interval
+        self.ipmi_retries = ipmi_retries
         # Набор шифров указывается явно. ipmitool по умолчанию пробует свой
         # (обычно 17), и если на BMC разрешён только третий — а это как раз
         # рекомендуемая настройка, см. docs/bmc-hardening.md, — сессия падает
@@ -177,13 +185,19 @@ class SupermicroDriver(BmcDriver):
             "-E",  # пароль берётся из IPMI_PASSWORD, а не из аргументов
             "-C", self.cipher_suite,
             "-L", "ADMINISTRATOR",
+            # -N/-R задают тайм-аут и число повторов на уровне самого RMCP+.
+            # Без них ipmitool молча ждёт своих умолчаний, и внешний тайм-аут
+            # срабатывает уже как аварийный.
+            "-N", str(self.ipmi_interval),
+            "-R", str(self.ipmi_retries),
             *args,
         ]
         # Через -P пароль виден в списке процессов любому, кто может читать
         # /proc. Переменная окружения видна только самому процессу и root.
         environment = {**os.environ, "IPMI_PASSWORD": self.password}
+        hard_limit = self.ipmi_interval * (self.ipmi_retries + 1) + 10
         result = subprocess.run(
-            command, capture_output=True, timeout=60, check=False, env=environment
+            command, capture_output=True, timeout=hard_limit, check=False, env=environment
         )
         if result.returncode != 0:
             message = result.stderr.decode(errors="replace").strip() or "неизвестная ошибка"

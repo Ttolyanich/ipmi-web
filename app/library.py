@@ -47,11 +47,15 @@ def free_space() -> int:
 
 
 def purge_stale_uploads(app, max_age_hours: int = 48) -> None:
-    """Убрать брошенные незавершённые загрузки.
+    """Убрать брошенные незавершённые загрузки и старые записи о входах.
 
     Без этого каждая прерванная заливка навсегда занимает несколько гигабайт,
     и однажды диск кончится ровно в момент, когда нужен новый образ.
     """
+    from datetime import timedelta
+
+    from .models import LoginAttempt, db, utcnow
+
     with app.app_context():
         directory = upload_dir()
         deadline = time.time() - max_age_hours * 3600
@@ -59,6 +63,14 @@ def purge_stale_uploads(app, max_age_hours: int = 48) -> None:
             if entry.is_file() and entry.stat().st_mtime < deadline:
                 os.remove(entry.path)
                 log.info("удалён брошенный кусок загрузки %s", entry.name)
+
+        days = current_app.config.get("LOGIN_ATTEMPT_RETENTION_DAYS", 7)
+        removed = LoginAttempt.query.filter(
+            LoginAttempt.ts < utcnow() - timedelta(days=days)
+        ).delete()
+        if removed:
+            db.session.commit()
+            log.info("удалено записей о попытках входа: %s", removed)
 
 
 def too_big(size: int) -> bool:
@@ -162,6 +174,15 @@ def _download(app, job_id: int) -> None:
                 job.total = int(response.headers.get("Content-Length") or 0)
                 db.session.commit()
 
+                # Проверяем место до записи: иначе диск кончится на середине,
+                # и разбираться придётся по невнятной ошибке ввода-вывода.
+                available = free_space()
+                if job.total and available < job.total * 1.05:
+                    raise RuntimeError(
+                        f"не хватит места: нужно ~{job.total / 1e9:.1f} ГБ, "
+                        f"свободно {available / 1e9:.1f} ГБ"
+                    )
+
                 written = 0
                 with open(partial, "wb") as handle:
                     for chunk in response.iter_content(1024 * 1024):
@@ -172,6 +193,16 @@ def _download(app, job_id: int) -> None:
                         if written % (32 * 1024 * 1024) < 1024 * 1024:
                             job.downloaded = written
                             db.session.commit()
+
+            # Оборванная отдача даёт файл, который выглядит целым. Без этой
+            # проверки половина дистрибутива попадёт в библиотеку как готовый
+            # образ, и выяснится это во время установки.
+            if job.total and written != job.total:
+                raise RuntimeError(
+                    f"файл получен не полностью: {written} из {job.total} байт"
+                )
+            if not job.total:
+                log.warning("сервер не сообщил размер %s, полноту проверить нечем", job.url)
 
             os.replace(partial, target)
             job.downloaded = written
