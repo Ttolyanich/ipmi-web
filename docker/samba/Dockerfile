@@ -6,8 +6,10 @@
 # а учётная запись создаётся одноразовой на время монтирования.
 FROM debian:12-slim
 
+# smbclient нужен для самопроверки шары изнутри контейнера: пакет samba даёт
+# только серверную часть.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends samba \
+    && apt-get install -y --no-install-recommends samba smbclient \
     && rm -rf /var/lib/apt/lists/*
 
 COPY smb.conf /etc/samba/smb.conf
