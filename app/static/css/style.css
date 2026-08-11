@@ -396,8 +396,7 @@ label.inline {
     cursor: pointer;
 }
 
-input[type="text"],
-input[type="password"],
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="hidden"]),
 select,
 textarea {
     display: block;
@@ -588,15 +587,16 @@ td a:hover {
 dl.data-list {
     display: grid;
     grid-template-columns: max-content 1fr;
-    gap: 10px 20px;
+    gap: 12px 20px;
     margin: 0 0 12px;
-    align-items: center;
+    align-items: start;
 }
 
 dt {
     color: var(--text-muted);
     font-size: 13px;
     font-weight: 500;
+    padding-top: 3px;
 }
 
 dd {
@@ -604,6 +604,17 @@ dd {
     font-size: 13.5px;
     color: var(--text-primary);
     font-weight: 500;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    align-items: center;
+}
+
+.tag-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    align-items: center;
 }
 
 /* Status Badges & Tags */

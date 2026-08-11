@@ -11,11 +11,11 @@
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <label>Имя сервера
-                <input name="name" value="{{ server.name if server }}" placeholder="srv-app-01" required>
+                <input type="text" name="name" value="{{ server.name if server }}" placeholder="srv-app-01" required>
             </label>
             
             <label>IP-адрес или Hostname BMC
-                <input name="address" value="{{ server.address if server }}" placeholder="192.168.1.100" required>
+                <input type="text" name="address" value="{{ server.address if server }}" placeholder="192.168.1.100" required>
             </label>
         </div>
 
@@ -29,7 +29,7 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <label>Пользователь BMC
-                <input name="bmc_user" value="{{ server.bmc_user if server else 'ADMIN' }}" required>
+                <input type="text" name="bmc_user" value="{{ server.bmc_user if server else 'ADMIN' }}" required>
             </label>
             
             <label>Пароль BMC
@@ -39,7 +39,7 @@
         </div>
 
         <label>Прямая ссылка на HTML5-консоль (необязательно)
-            <input name="console_url" value="{{ server.console_url or '' if server }}" placeholder="По умолчанию: https://адрес_bmc/">
+            <input type="text" name="console_url" value="{{ server.console_url or '' if server }}" placeholder="По умолчанию: https://адрес_bmc/">
         </label>
 
         <label>Заметки / Описание

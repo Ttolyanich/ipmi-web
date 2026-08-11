@@ -33,10 +33,10 @@
         <form method="post" action="{{ url_for('library.download') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>URL-адрес ISO-образа
-                <input name="url" placeholder="https://example.com/ubuntu-22.04-live-server-amd64.iso" required>
+                <input type="text" name="url" placeholder="https://example.com/ubuntu-22.04-live-server-amd64.iso" required>
             </label>
             <label>Сохранить как (имя файла)
-                <input name="filename" placeholder="необязательно, например ubuntu-22.04.iso">
+                <input type="text" name="filename" placeholder="необязательно, например ubuntu-22.04.iso">
             </label>
             <button type="submit" class="button secondary" style="width: 100%;">Запустить скачивание</button>
         </form>

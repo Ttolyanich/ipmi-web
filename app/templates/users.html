@@ -19,7 +19,7 @@
         <form method="post" action="{{ url_for('auth.create_user') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Логин
-                <input name="username" placeholder="ivanov" required>
+                <input type="text" name="username" placeholder="ivanov" required>
             </label>
             <label>Пароль (мин. {{ config.MIN_PASSWORD_LENGTH }} символов)
                 <input type="password" name="password" required minlength="{{ config.MIN_PASSWORD_LENGTH }}">
