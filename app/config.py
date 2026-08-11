@@ -47,6 +47,7 @@ class Config:
 
     LOGIN_MAX_ATTEMPTS = _int("LOGIN_MAX_ATTEMPTS", 5)
     LOGIN_WINDOW_SECONDS = _int("LOGIN_WINDOW_SECONDS", 300)
+    MIN_PASSWORD_LENGTH = _int("MIN_PASSWORD_LENGTH", 8)
 
     MAX_CONTENT_LENGTH = None  # загрузка идёт чанками, лимит не нужен
     SESSION_COOKIE_HTTPONLY = True

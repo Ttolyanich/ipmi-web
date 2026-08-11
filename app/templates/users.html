@@ -10,7 +10,8 @@
     <form method="post" action="{{ url_for('auth.create_user') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Логин<input name="username" required></label>
-        <label>Пароль<input type="password" name="password" required minlength="10"></label>
+        <label>Пароль<input type="password" name="password" required
+                            minlength="{{ config.MIN_PASSWORD_LENGTH }}"></label>
         <label class="inline"><input type="checkbox" name="is_admin"> администратор</label>
         <button type="submit">Создать</button>
     </form>
@@ -33,7 +34,8 @@
                 </form>
                 <form method="post" action="{{ url_for('auth.reset_password', user_id=row.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="password" name="password" placeholder="новый пароль" minlength="10">
+                    <input type="password" name="password" placeholder="новый пароль"
+                           minlength="{{ config.MIN_PASSWORD_LENGTH }}">
                     <button class="link">сменить</button>
                 </form>
             </td>

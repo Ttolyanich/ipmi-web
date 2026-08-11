@@ -1,4 +1,13 @@
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 from ..audit import log as audit
 from ..models import User, db, utcnow
@@ -67,8 +76,9 @@ def create_user():
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
 
-    if len(username) < 3 or len(password) < 10:
-        flash("Логин от 3 символов, пароль от 10", "error")
+    minimum = current_app.config["MIN_PASSWORD_LENGTH"]
+    if len(username) < 3 or len(password) < minimum:
+        flash(f"Логин от 3 символов, пароль от {minimum}", "error")
     elif User.query.filter_by(username=username).first():
         flash("Такой пользователь уже есть", "error")
     else:
@@ -107,10 +117,11 @@ def toggle_user(user_id: int):
 def reset_password(user_id: int):
     user = db.session.get(User, user_id)
     password = request.form.get("password") or ""
+    minimum = current_app.config["MIN_PASSWORD_LENGTH"]
     if user is None:
         flash("Пользователь не найден", "error")
-    elif len(password) < 10:
-        flash("Пароль от 10 символов", "error")
+    elif len(password) < minimum:
+        flash(f"Пароль от {minimum} символов", "error")
     else:
         user.password_hash = hash_password(password)
         db.session.commit()
