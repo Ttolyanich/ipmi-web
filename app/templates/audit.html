@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Журнал — ipmi-web{% endblock %}
+
+{% block content %}
+<h1>Журнал действий</h1>
+
+<table>
+    <thead><tr><th>Когда</th><th>Кто</th><th>Откуда</th><th>Действие</th><th>Сервер</th><th>Подробности</th></tr></thead>
+    <tbody>
+    {% for entry in entries %}
+    <tr>
+        <td>{{ entry.ts|moment }}</td>
+        <td>{{ entry.username }}</td>
+        <td class="mono small">{{ entry.ip }}</td>
+        <td>{{ entry.action }}</td>
+        <td>{{ entry.server_name or '—' }}</td>
+        <td>{{ entry.detail or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<div class="row">
+    {% if page > 1 %}<a href="{{ url_for('audit_log.index', page=page-1) }}">← новее</a>{% endif %}
+    {% if entries|length == 100 %}<a href="{{ url_for('audit_log.index', page=page+1) }}">старее →</a>{% endif %}
+</div>
+{% endblock %}

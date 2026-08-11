@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Серверы — ipmi-web{% endblock %}
+
+{% block content %}
+<div class="head">
+    <h1>Серверы</h1>
+    {% if user.is_admin %}<a class="button" href="{{ url_for('servers.create') }}">Добавить</a>{% endif %}
+</div>
+
+{% if not servers %}
+    <p class="muted">Серверов пока нет.</p>
+{% else %}
+<table>
+    <thead>
+    <tr><th>Имя</th><th>Адрес</th><th>Вендор</th><th>Монтирование</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for server in servers %}
+    <tr>
+        <td><a href="{{ url_for('servers.detail', server_id=server.id) }}">{{ server.name }}</a></td>
+        <td class="mono">{{ server.address }}</td>
+        <td>{{ server.vendor }}</td>
+        <td>
+            {% set mount = active.get(server.id) %}
+            {% if mount %}
+                <span class="tag ok">{{ mount.filename }}</span>
+            {% else %}
+                <span class="muted">—</span>
+            {% endif %}
+        </td>
+        <td><a href="{{ server.console_link }}" target="_blank" rel="noopener">консоль</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

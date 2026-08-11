@@ -1,23 +1,25 @@
 services:
-  # Раздача библиотеки ISO по SMB для Virtual Media -> CD-ROM Image.
-  #
   # network_mode: host обязателен. При публикации порта через "ports:" трафик
   # идёт через DNAT и цепочку forward, куда Docker сам вписывает ACCEPT, —
   # правила фильтрации в input его не увидят, и 445 окажется открыт всему
   # интернету. См. DECISIONS.md.
-  samba:
-    # Штатный путь — docker compose pull, образ собирает Actions в ghcr.
-    # build оставлен для локальной пересборки: docker compose up -d --build
-    image: ghcr.io/ttolyanich/ipmi-web-samba:latest
-    build: ./docker/samba
-    container_name: ipmi-smb
+  ipmi-web:
+    image: ghcr.io/ttolyanich/ipmi-web:latest
+    build: .
+    container_name: ipmi-web
     network_mode: host
     restart: unless-stopped
+    env_file: .env
     environment:
-      # Пароль задаётся в .env, в репозиторий не попадает.
-      SMB_USER: ${SMB_USER:-ikvm}
-      SMB_PASS: ${SMB_PASS:?SMB_PASS не задан, создай .env}
+      PORT: ${PORT:-5006}
+      DATA_DIR: /data
+      ISO_DIR: /srv/iso
+      FW_SOCKET: /run/ipmi-fw/helper.sock
     volumes:
-      - ${ISO_DIR:-/opt/iso}:/srv/iso:ro
-      # Конфиг томом, чтобы править список разрешённых адресов без пересборки.
-      - ./docker/samba/smb.conf:/etc/samba/smb.conf:ro
+      - ./data:/data
+      - ${ISO_DIR:-/opt/iso}:/srv/iso
+      # Сокет хостового демона, управляющего окном в nftables. У контейнера
+      # при этом нет NET_ADMIN: он может только попросить открыть порт.
+      - /run/ipmi-fw:/run/ipmi-fw
+      # Конфиг Samba томом, чтобы правки не требовали пересборки образа.
+      - ./config/smb.conf:/etc/samba/smb.conf:ro

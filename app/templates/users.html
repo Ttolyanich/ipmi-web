@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Пользователи — ipmi-web{% endblock %}
+
+{% block content %}
+<h1>Пользователи</h1>
+<p class="hint">Учётные записи именные: обезличенный журнал не имеет смысла.</p>
+
+<div class="card">
+    <h2>Добавить</h2>
+    <form method="post" action="{{ url_for('auth.create_user') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Логин<input name="username" required></label>
+        <label>Пароль<input type="password" name="password" required minlength="10"></label>
+        <label class="inline"><input type="checkbox" name="is_admin"> администратор</label>
+        <button type="submit">Создать</button>
+    </form>
+</div>
+
+<div class="card">
+    <table>
+        <thead><tr><th>Логин</th><th>Роль</th><th>Последний вход</th><th>Состояние</th><th></th></tr></thead>
+        <tbody>
+        {% for row in users %}
+        <tr>
+            <td>{{ row.username }}</td>
+            <td>{{ 'администратор' if row.is_admin else 'оператор' }}</td>
+            <td>{{ row.last_login_at|moment }}</td>
+            <td>{{ 'отключён' if row.disabled else 'активен' }}</td>
+            <td class="row">
+                <form method="post" action="{{ url_for('auth.toggle_user', user_id=row.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="link">{{ 'включить' if row.disabled else 'отключить' }}</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.reset_password', user_id=row.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="password" name="password" placeholder="новый пароль" minlength="10">
+                    <button class="link">сменить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

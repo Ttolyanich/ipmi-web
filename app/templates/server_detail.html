@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ server.name }} — ipmi-web{% endblock %}
+
+{% block content %}
+<div class="head">
+    <h1>{{ server.name }}</h1>
+    <span class="mono muted">{{ server.address }}</span>
+    <span class="spacer"></span>
+    <a class="button ghost" href="{{ server.console_link }}" target="_blank" rel="noopener">HTML5-консоль</a>
+    {% if user.is_admin %}<a class="button ghost" href="{{ url_for('servers.edit', server_id=server.id) }}">Правка</a>{% endif %}
+</div>
+
+{% if error %}
+    <div class="flash error">BMC не отвечает: {{ error }}</div>
+{% endif %}
+
+<div class="grid">
+    <div class="card">
+        <h2>Состояние</h2>
+        <dl>
+            <dt>Питание</dt><dd>{{ power or '—' }}</dd>
+            <dt>Слоты</dt>
+            <dd>
+                {% if slots %}
+                    {% for slot in slots %}
+                        <span class="tag {{ 'ok' if slot.mounted else '' }}">
+                            {{ slot.index }}: {{ 'смонтирован' if slot.mounted else 'пусто' }}
+                        </span>
+                    {% endfor %}
+                {% else %}—{% endif %}
+            </dd>
+            {% if mount %}
+            <dt>Образ</dt><dd>{{ mount.filename }}</dd>
+            <dt>Смонтировал</dt><dd>{{ mount.started_by }}, {{ mount.started_at|moment }}</dd>
+            <dt>Подтверждено</dt><dd>{{ mount.last_seen_at|moment }}</dd>
+            {% endif %}
+        </dl>
+        <p class="hint">Состояние слотов опрошено у BMC, а не взято из базы.</p>
+    </div>
+
+    <div class="card">
+        <h2>Образ</h2>
+        {% if mount %}
+            <p>Смонтирован <strong>{{ mount.filename }}</strong>.</p>
+            <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="danger">Отцепить</button>
+            </form>
+        {% else %}
+            <form method="post" action="{{ url_for('servers.mount', server_id=server.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label>Из библиотеки
+                    <select name="filename" required>
+                        {% for image in images %}
+                        <option value="{{ image.filename }}" {% if image.too_big %}disabled{% endif %}>
+                            {{ image.filename }} — {{ image.size|bytes }}{% if image.too_big %} (больше 4.7 ГБ){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit">Смонтировать</button>
+            </form>
+            <p class="hint">Образы больше 4.7 ГБ недоступны: прошивка BMC их не принимает.</p>
+            <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="link">отцепить образ, смонтированный мимо сервиса</button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Загрузка и питание</h2>
+        <form method="post" action="{{ url_for('servers.boot_override', server_id=server.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Следующая загрузка, однократно
+                <select name="target">
+                    <option value="cdrom">CD-ROM (виртуальный образ)</option>
+                    <option value="disk">Диск</option>
+                    <option value="pxe">Сеть (PXE)</option>
+                    <option value="bios">BIOS Setup</option>
+                </select>
+            </label>
+            <button type="submit">Назначить</button>
+        </form>
+        <p class="hint">Флаг одноразовый: BMC сбросит его после первой загрузки, иначе установка зациклится.</p>
+
+        <form method="post" action="{{ url_for('servers.power', server_id=server.id) }}"
+              onsubmit="return confirm('Действие с питанием боевого сервера. Продолжить?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row">
+                <button name="action" value="on">Включить</button>
+                <button name="action" value="soft">Мягко выключить</button>
+                <button name="action" value="reset" class="danger">Reset</button>
+                <button name="action" value="off" class="danger">Обесточить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h2>История монтирований</h2>
+    {% if not history %}
+        <p class="muted">Пока пусто.</p>
+    {% else %}
+    <table>
+        <thead><tr><th>Образ</th><th>Кто</th><th>Начало</th><th>Конец</th><th>Состояние</th></tr></thead>
+        <tbody>
+        {% for row in history %}
+        <tr>
+            <td>{{ row.filename }}</td>
+            <td>{{ row.started_by or '—' }}</td>
+            <td>{{ row.started_at|moment }}</td>
+            <td>{{ row.ended_at|moment }}</td>
+            <td>{{ row.state }}{% if row.error %} <span class="muted">({{ row.error }})</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

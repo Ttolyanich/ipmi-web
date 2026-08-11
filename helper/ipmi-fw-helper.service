@@ -1,0 +1,26 @@
+[Unit]
+Description=ipmi-web: окно доступа к SMB-шаре в nftables
+Documentation=https://github.com/Ttolyanich/ipmi-web
+After=network.target nftables.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/ipmi-web/helper/ipmi-fw-helper.py --socket /run/ipmi-fw/helper.sock
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=ipmi-fw
+RuntimeDirectoryMode=0700
+
+# Демон правит файрвол, поэтому CAP_NET_ADMIN нужен. Всё остальное урезано:
+# его задача — две операции с одним множеством.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_DAC_OVERRIDE
+
+[Install]
+WantedBy=multi-user.target

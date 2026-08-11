@@ -3,13 +3,13 @@ name: build
 on:
   push:
     branches: [main]
-    paths:
-      - 'docker/**'
-      - '.github/workflows/docker.yml'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 jobs:
-  samba:
+  image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,8 +25,8 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: ./docker/samba
+          context: .
           push: true
           # владелец захардкожен строчными: ghcr не принимает заглавные буквы,
           # а github.repository_owner отдаёт их как есть
-          tags: ghcr.io/ttolyanich/ipmi-web-samba:latest
+          tags: ghcr.io/ttolyanich/ipmi-web:latest

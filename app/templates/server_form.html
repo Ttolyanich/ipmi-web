@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Правка' if server else 'Новый сервер' }} — ipmi-web{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{{ 'Правка сервера' if server else 'Новый сервер' }}</h1>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Имя<input name="name" value="{{ server.name if server }}" required></label>
+        <label>Адрес BMC<input name="address" value="{{ server.address if server }}" required></label>
+        <label>Вендор
+            <select name="vendor">
+                {% for vendor in vendors %}
+                <option value="{{ vendor }}" {% if server and server.vendor == vendor %}selected{% endif %}>{{ vendor }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Пользователь BMC<input name="bmc_user" value="{{ server.bmc_user if server else 'ADMIN' }}"></label>
+        <label>Пароль BMC
+            <input type="password" name="bmc_password" autocomplete="new-password"
+                   {% if not server %}required{% endif %}>
+            {% if server %}<span class="hint">пусто — оставить прежний</span>{% endif %}
+        </label>
+        <label>Ссылка на консоль<input name="console_url" value="{{ server.console_url or '' if server }}"
+                                       placeholder="по умолчанию https://адрес/"></label>
+        <label>Заметки<textarea name="notes" rows="3">{{ server.notes or '' if server }}</textarea></label>
+        <button type="submit">Сохранить</button>
+    </form>
+</div>
+
+{% if server %}
+<form method="post" action="{{ url_for('servers.delete', server_id=server.id) }}"
+      onsubmit="return confirm('Удалить сервер {{ server.name }}?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="danger">Удалить сервер</button>
+</form>
+{% endif %}
+{% endblock %}

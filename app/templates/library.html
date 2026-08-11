@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Образы — ipmi-web{% endblock %}
+
+{% block content %}
+<h1>Библиотека образов</h1>
+
+<div class="grid">
+    <div class="card">
+        <h2>Загрузить с компьютера</h2>
+        <input type="file" id="file" accept=".iso">
+        <button id="upload" disabled>Загрузить</button>
+        <div id="progress" class="hint"></div>
+        <p class="hint">Файл режется на куски: обрыв связи не начинает загрузку заново.</p>
+    </div>
+
+    <div class="card">
+        <h2>Скачать по ссылке</h2>
+        <form method="post" action="{{ url_for('library.download') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Адрес образа<input name="url" placeholder="https://..." required></label>
+            <label>Имя файла<input name="filename" placeholder="необязательно"></label>
+            <button type="submit">Скачать</button>
+        </form>
+        <p class="hint">Качает сервер, а не твой браузер — канал обычно толще.</p>
+    </div>
+</div>
+
+{% if jobs %}
+<div class="card">
+    <h2>Скачивания</h2>
+    <table>
+        <thead><tr><th>Файл</th><th>Состояние</th><th>Прогресс</th><th>Когда</th></tr></thead>
+        <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.filename }}</td>
+            <td>{{ job.status }}{% if job.error %} <span class="muted">{{ job.error }}</span>{% endif %}</td>
+            <td>{{ job.percent }}% ({{ job.downloaded|bytes }})</td>
+            <td>{{ job.created_at|moment }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Образы</h2>
+    {% if not images %}
+        <p class="muted">Библиотека пуста.</p>
+    {% else %}
+    <table>
+        <thead><tr><th>Файл</th><th>Размер</th><th>SHA256</th><th></th></tr></thead>
+        <tbody>
+        {% for image in images %}
+        <tr>
+            <td>
+                {{ image.filename }}
+                {% if image.too_big %}<span class="tag warn">больше 4.7 ГБ, BMC не примет</span>{% endif %}
+            </td>
+            <td>{{ image.size|bytes }}</td>
+            <td class="mono small">{{ image.sha256 or '—' }}</td>
+            <td class="row">
+                {% if not image.sha256 %}
+                <form method="post" action="{{ url_for('library.rehash') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="filename" value="{{ image.filename }}">
+                    <button class="link">посчитать хэш</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('library.delete') }}"
+                      onsubmit="return confirm('Удалить {{ image.filename }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="filename" value="{{ image.filename }}">
+                    <button class="link danger">удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+<script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+{% endblock %}
