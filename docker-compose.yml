@@ -11,6 +11,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # При network_mode: host проброс портов не применяется — контейнер и так
+      # в сети хоста. Ограничение доступности задаётся адресом привязки
+      # gunicorn, а не синтаксисом ports.
+      BIND_ADDR: ${BIND_ADDR:-127.0.0.1}
       PORT: ${PORT:-5006}
       DATA_DIR: /data
       ISO_DIR: /srv/iso

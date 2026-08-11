@@ -13,6 +13,11 @@ getent group "${SMB_GROUP:-ikvm}" >/dev/null || groupadd "${SMB_GROUP:-ikvm}"
 # веб-морде управление демоном Docker. Это дороже, чем один общий контейнер.
 smbd --foreground --no-process-group --debug-stdout &
 
+# Панель по умолчанию слушает только localhost: наружу её выставляет nginx, а
+# сам контейнер работает в сети хоста, поэтому 0.0.0.0 означал бы «открыт на
+# всех интерфейсах, включая публичный». Samba этим не затронута — ей 445 нужен
+# именно снаружи, за неё отвечает окно в nftables.
+#
 # Один воркер: планировщик APScheduler работает внутри процесса, и в
 # нескольких воркерах задача опроса BMC дублировалась бы.
 exec gunicorn \
@@ -20,6 +25,6 @@ exec gunicorn \
     --threads 16 \
     --worker-class gthread \
     --timeout 300 \
-    --bind 0.0.0.0:"${PORT:-5006}" \
+    --bind "${BIND_ADDR:-127.0.0.1}:${PORT:-5006}" \
     --access-logfile - \
     wsgi:app
