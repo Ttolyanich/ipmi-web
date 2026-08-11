@@ -86,6 +86,8 @@ docker compose pull && docker compose up -d
   принятые риски. Читать первым.
 - [`docs/bmc-api.md`](docs/bmc-api.md) — недокументированный API вебморды
   Supermicro, снятый с живой машины.
+- [`docs/frontend-brief.md`](docs/frontend-brief.md) — бриф на переработку
+  интерфейса: экраны, маршруты, данные и правила, которые нельзя нарушать.
 - [`docs/spike.md`](docs/spike.md) — как проверялся драйвер.
 - [`docs/bmc-hardening.md`](docs/bmc-hardening.md) — гигиена BMC.
 
