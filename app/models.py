@@ -45,7 +45,12 @@ class Server(db.Model):
 
     @property
     def console_link(self) -> str:
-        return self.console_url or f"https://{self.address}/"
+        """Куда вести, если прокси консоли не настроен — прямо на вебморду BMC."""
+        return f"https://{self.address}/"
+
+    @property
+    def console_proxied(self) -> bool:
+        return bool(self.console_url)
 
 
 class IsoFile(db.Model):

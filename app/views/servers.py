@@ -166,6 +166,46 @@ def unmount(server_id: int):
     return redirect(url_for("servers.detail", server_id=server.id))
 
 
+@bp.route("/servers/<int:server_id>/console")
+@login_required
+def console(server_id: int):
+    """Открыть консоль без отдельного входа в BMC.
+
+    Работает так: драйвер логинится в BMC, мы ставим полученную cookie на свой
+    домен и отправляем браузер на прокси консоли. Cookie не различают порты,
+    поэтому прокси на соседнем порту получит её и передаст BMC.
+
+    Если прокси не настроен (в карточке не указан его адрес), ведём себя как
+    раньше — просто отправляем на вебморду BMC, где придётся войти руками.
+    """
+    server = db.session.get(Server, server_id) or _missing()
+
+    proxy = (server.console_url or "").rstrip("/")
+    if not proxy:
+        return redirect(server.console_link)
+
+    try:
+        cookie_name, cookie_value, path = get_driver(server).console_session()
+    except (DriverError, NotImplementedError) as exc:
+        flash(f"Не удалось открыть сессию к BMC: {exc}", "error")
+        return redirect(url_for("servers.detail", server_id=server.id))
+
+    audit("console", server.name, "открыта консоль через прокси")
+
+    response = redirect(proxy + path)
+    response.set_cookie(
+        cookie_name,
+        cookie_value,
+        secure=True,
+        httponly=True,
+        # Lax достаточно: переход на соседний порт того же имени считается
+        # тем же сайтом, и cookie уедет вместе с обычной навигацией.
+        samesite="Lax",
+        path="/",
+    )
+    return response
+
+
 @bp.route("/servers/<int:server_id>/boot", methods=["POST"])
 @login_required
 def boot_override(server_id: int):

@@ -38,8 +38,11 @@
             </label>
         </div>
 
-        <label>Прямая ссылка на HTML5-консоль (необязательно)
-            <input type="text" name="console_url" value="{{ server.console_url or '' if server }}" placeholder="По умолчанию: https://адрес_bmc/">
+        <label>Прокси консоли (необязательно)
+            <input type="text" name="console_url" value="{{ server.console_url or '' if server }}" placeholder="https://это-же-имя:7001">
+            <span class="hint">Адрес прокси консоли этого сервера. Имя должно совпадать с именем
+            панели, иначе браузер не отдаст туда сессию и входить в BMC придётся руками.
+            Пусто — ссылка ведёт прямо на вебморду BMC.</span>
         </label>
 
         <label>Заметки / Описание

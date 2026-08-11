@@ -133,6 +133,15 @@ class SupermicroDriver(BmcDriver):
             )
         return response.text
 
+    # --- консоль ---
+
+    CONSOLE_PATH = "/cgi/url_redirect.cgi?url_name=man_ikvm_html5_bootstrap"
+
+    def console_session(self) -> tuple[str, str, str]:
+        if self._session is None:
+            self._login()
+        return "SID", self._session.cookies.get("SID"), self.CONSOLE_PATH
+
     # --- виртуальные медиа ---
 
     def media_path(self, share: str, filename: str) -> str:
