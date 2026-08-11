@@ -51,7 +51,11 @@ class Config:
     # доверенной сети и доступ ограничен другими средствами.
     FIREWALL_ENABLED = _bool("FIREWALL_ENABLED", True)
     FW_SOCKET = os.environ.get("FW_SOCKET", "/run/ipmi-fw/helper.sock")
-    FW_WINDOW_SECONDS = _int("FW_WINDOW_SECONDS", 28800)
+    # Короткий TTL с автопродлением, пока BMC подтверждает монтирование.
+    # Длинный фиксированный не нужен: продление делает фоновая задача, а
+    # короткое окно означает, что падение сервиса закроет порт за полчаса, а
+    # не оставит открытым на смену.
+    FW_WINDOW_SECONDS = _int("FW_WINDOW_SECONDS", 1800)
     MOUNT_POLL_SECONDS = _int("MOUNT_POLL_SECONDS", 300)
 
     # Группа, членство в которой открывает доступ к шаре. Одноразовые
