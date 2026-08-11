@@ -1,0 +1,43 @@
+#!/usr/sbin/nft -f
+#
+# Доступ к SMB-раздаче образов. Единственное место, где решается, кому можно
+# забирать ISO, — множество ikvm.allow ниже.
+#
+# Смысл конструкции: по умолчанию порт закрыт, а открытым его держит только
+# наблюдаемый факт «монтирование идёт». Элементы множества имеют таймаут, и
+# ядро удаляет их само — если сервис упадёт или контейнер убьют, порт всё
+# равно закроется. Множество при загрузке пустое, поэтому после перезагрузки
+# хоста состояние — «закрыто», а не «открыто».
+#
+# Установка (НЕ перезаписывать существующий /etc/nftables.conf — там может
+# лежать остальной ruleset хоста):
+#
+#   mkdir -p /etc/nftables.d
+#   cp nftables/ikvm.nft /etc/nftables.d/ikvm.nft
+#   grep -q 'nftables.d' /etc/nftables.conf || echo 'include "/etc/nftables.d/*.nft"' >> /etc/nftables.conf
+#   systemctl enable --now nftables
+#   nft -f /etc/nftables.d/ikvm.nft
+#
+# Открыть окно на время монтирования:
+#   nft add element inet ikvm allow '{ 203.0.113.10 timeout 30m }'
+#
+# Закрыть немедленно (плюс добить уже установленную сессию, иначе она
+# переживёт удаление правила):
+#   nft delete element inet ikvm allow '{ 203.0.113.10 }'
+#   conntrack -D -p tcp --dport 445 -s 203.0.113.10
+
+table inet ikvm {
+    set allow {
+        type ipv4_addr
+        flags timeout
+        comment "адреса BMC, которым сейчас разрешено забирать образ"
+    }
+
+    chain input {
+        # priority -10: раньше обычного filter, чтобы решение принималось здесь
+        type filter hook input priority -10; policy accept;
+
+        tcp dport 445 ip saddr @allow accept
+        tcp dport 445 drop
+    }
+}
