@@ -14,6 +14,8 @@ VENDORS = tuple(_REGISTRY)
 
 
 def get_driver(server) -> BmcDriver:
+    from flask import current_app
+
     from ..crypto import decrypt
 
     cls = _REGISTRY.get(server.vendor)
@@ -21,7 +23,12 @@ def get_driver(server) -> BmcDriver:
         raise DriverError(
             f"для вендора {server.vendor!r} драйвера нет — поддерживаются: {', '.join(VENDORS)}"
         )
-    return cls(server.address, server.bmc_user, decrypt(server.bmc_password_enc))
+    return cls(
+        server.address,
+        server.bmc_user,
+        decrypt(server.bmc_password_enc),
+        cipher_suite=current_app.config.get("IPMI_CIPHER_SUITE", "3"),
+    )
 
 
 __all__ = ["BmcDriver", "DriverError", "MediaSlot", "VENDORS", "get_driver"]

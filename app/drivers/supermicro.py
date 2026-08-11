@@ -39,9 +39,21 @@ _POWER_IPMI = {
 class SupermicroDriver(BmcDriver):
     vendor = "supermicro"
 
-    def __init__(self, address: str, username: str, password: str, timeout: int = 30):
+    def __init__(
+        self,
+        address: str,
+        username: str,
+        password: str,
+        timeout: int = 30,
+        cipher_suite: str = "3",
+    ):
         super().__init__(address, username, password)
         self.timeout = timeout
+        # Набор шифров указывается явно. ipmitool по умолчанию пробует свой
+        # (обычно 17), и если на BMC разрешён только третий — а это как раз
+        # рекомендуемая настройка, см. docs/bmc-hardening.md, — сессия падает
+        # с «invalid role», по которому причину не угадать.
+        self.cipher_suite = cipher_suite
         self._session = None
         self._token = None
 
@@ -162,11 +174,19 @@ class SupermicroDriver(BmcDriver):
             "-H", self.address,
             "-U", self.username,
             "-P", self.password,
+            "-C", self.cipher_suite,
+            "-L", "ADMINISTRATOR",
             *args,
         ]
         result = subprocess.run(command, capture_output=True, timeout=60, check=False)
         if result.returncode != 0:
             message = result.stderr.decode(errors="replace").strip() or "неизвестная ошибка"
+            if "invalid role" in message or "RMCP+" in message:
+                message += (
+                    f" (набор шифров {self.cipher_suite} не принят; "
+                    "проверь 'Cipher Suite Priv Max' в выводе ipmitool lan print "
+                    "и задай IPMI_CIPHER_SUITE)"
+                )
             raise DriverError(f"BMC {self.address}: ipmitool {' '.join(args)}: {message}")
         return result.stdout.decode(errors="replace").strip()
 

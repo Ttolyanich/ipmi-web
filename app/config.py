@@ -49,6 +49,11 @@ class Config:
     LOGIN_WINDOW_SECONDS = _int("LOGIN_WINDOW_SECONDS", 300)
     MIN_PASSWORD_LENGTH = _int("MIN_PASSWORD_LENGTH", 8)
 
+    # Набор шифров RMCP+ для ipmitool. Указывается явно: умолчание ipmitool
+    # (17) не работает на BMC, где разрешён только третий — а это как раз
+    # рекомендуемая настройка. Симптом — «invalid role».
+    IPMI_CIPHER_SUITE = os.environ.get("IPMI_CIPHER_SUITE", "3")
+
     MAX_CONTENT_LENGTH = None  # загрузка идёт чанками, лимит не нужен
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
