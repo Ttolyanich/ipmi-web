@@ -5,6 +5,7 @@ import os
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, redirect, url_for
+from sqlalchemy import text
 
 from .config import Config
 from .models import User, db
@@ -29,6 +30,11 @@ def create_app(config_object=Config) -> Flask:
 
     with app.app_context():
         db.create_all()
+        # WAL позволяет читать во время записи. Без него фоновое скачивание,
+        # пишущее прогресс, и обычный запрос сталкиваются на «database is
+        # locked» — на многогигабайтных файлах это вопрос времени.
+        db.session.execute(text("PRAGMA journal_mode=WAL"))
+        db.session.commit()
         _bootstrap_admin(app)
 
     _register_blueprints(app)
@@ -107,7 +113,7 @@ def _start_scheduler(app: Flask) -> None:
     Работает внутри процесса, как в остальном парке. Запускать gunicorn нужно
     в один воркер, иначе задача будет дублироваться.
     """
-    from . import mounts
+    from . import library, mounts
 
     scheduler = BackgroundScheduler(timezone="UTC")
     scheduler.add_job(
@@ -116,6 +122,17 @@ def _start_scheduler(app: Flask) -> None:
         seconds=app.config["MOUNT_POLL_SECONDS"],
         args=[app],
         id="poll_mounts",
+        max_instances=1,
+        coalesce=True,
+    )
+    # Брошенные незавершённые заливки иначе копятся гигабайтами, и диск
+    # кончится ровно тогда, когда понадобится новый образ.
+    scheduler.add_job(
+        library.purge_stale_uploads,
+        "interval",
+        hours=6,
+        args=[app],
+        id="purge_uploads",
         max_instances=1,
         coalesce=True,
     )

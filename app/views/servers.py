@@ -1,6 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
-from .. import library, mounts
+from .. import firewall, library, mounts, smbusers
 from ..audit import log as audit
 from ..crypto import encrypt
 from ..drivers import VENDORS, DriverError, get_driver
@@ -38,6 +38,7 @@ def detail(server_id: int):
     history = (
         server.mounts.order_by(Mount.started_at.desc()).limit(10).all()
     )
+    firewall_code, firewall_hint = firewall.status()
     return render_template(
         "server_detail.html",
         server=server,
@@ -47,6 +48,8 @@ def detail(server_id: int):
         power=power,
         error=error,
         history=history,
+        firewall_code=firewall_code,
+        firewall_hint=firewall_hint,
     )
 
 
@@ -133,7 +136,9 @@ def mount(server_id: int):
     try:
         mounts.start(server, filename, current_user().username)
         flash(f"Образ {filename} смонтирован", "ok")
-    except (mounts.MountError, Exception) as exc:  # noqa: BLE001
+    except (mounts.MountError, DriverError, smbusers.SmbUserError) as exc:
+        # Ловим только предвидимые причины: ошибка в самом коде должна
+        # долетать до журнала со стеком, а не превращаться в розовую плашку.
         flash(f"Не удалось смонтировать: {exc}", "error")
 
     return redirect(url_for("servers.detail", server_id=server.id))

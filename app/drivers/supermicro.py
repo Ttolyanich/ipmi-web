@@ -6,6 +6,7 @@ API вебморды публично не документирован, сня�
 пустым телом, по которому причину не угадать.
 """
 import logging
+import os
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -173,12 +174,17 @@ class SupermicroDriver(BmcDriver):
             "ipmitool", "-I", "lanplus",
             "-H", self.address,
             "-U", self.username,
-            "-P", self.password,
+            "-E",  # пароль берётся из IPMI_PASSWORD, а не из аргументов
             "-C", self.cipher_suite,
             "-L", "ADMINISTRATOR",
             *args,
         ]
-        result = subprocess.run(command, capture_output=True, timeout=60, check=False)
+        # Через -P пароль виден в списке процессов любому, кто может читать
+        # /proc. Переменная окружения видна только самому процессу и root.
+        environment = {**os.environ, "IPMI_PASSWORD": self.password}
+        result = subprocess.run(
+            command, capture_output=True, timeout=60, check=False, env=environment
+        )
         if result.returncode != 0:
             message = result.stderr.decode(errors="replace").strip() or "неизвестная ошибка"
             if "invalid role" in message or "RMCP+" in message:

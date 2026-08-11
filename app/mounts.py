@@ -53,7 +53,7 @@ def start(server: Server, filename: str, username: str) -> Mount:
     window_open = False
     try:
         firewall.open_window(server.address)
-        window_open = True
+        window_open = firewall.enabled()
 
         driver = get_driver(server)
         path = driver.media_path(current_app.config["ISO_SHARE"], filename)
@@ -74,7 +74,12 @@ def start(server: Server, filename: str, username: str) -> Mount:
     db.session.add(mount)
     db.session.commit()
 
-    audit("mount", server.name, f"образ {filename}", username=username)
+    detail = f"образ {filename}"
+    if not firewall.enabled():
+        # В журнале должно быть видно, что доступ к шаре в этот момент не
+        # ограничивался нами: при разборе инцидента это первое, что спросят.
+        detail += "; управление файрволом выключено"
+    audit("mount", server.name, detail, username=username)
     return mount
 
 
@@ -119,6 +124,7 @@ def refresh(mount: Mount) -> bool:
         return False
 
     try:
+        # Повторный вызов обновляет таймаут — это и есть продление окна.
         firewall.open_window(server.address)
     except firewall.FirewallError as exc:
         log.error("окно для %s не продлено: %s", server.address, exc)

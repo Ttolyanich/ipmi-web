@@ -8,13 +8,20 @@
 поэтому падение сервиса или контейнера закрывает порт, а не оставляет его
 открытым.
 """
+import logging
 import socket
 
 from flask import current_app
 
+log = logging.getLogger(__name__)
+
 
 class FirewallError(RuntimeError):
     pass
+
+
+def enabled() -> bool:
+    return bool(current_app.config.get("FIREWALL_ENABLED", True))
 
 
 def _send(command: str) -> str:
@@ -33,17 +40,41 @@ def _send(command: str) -> str:
 
 
 def open_window(address: str, seconds: int = None) -> None:
+    if not enabled():
+        log.debug("интеграция с файрволом выключена, окно для %s не открываю", address)
+        return
     seconds = seconds or current_app.config["FW_WINDOW_SECONDS"]
     _send(f"ALLOW {address} {int(seconds)}")
 
 
 def close_window(address: str) -> None:
+    if not enabled():
+        return
     _send(f"DENY {address}")
 
 
 def available() -> bool:
+    """Отвечает ли демон. Выключенная интеграция — это не «недоступен»,
+    поэтому проверять состояние имеет смысл только при включённой."""
+    if not enabled():
+        return False
     try:
         _send("PING")
         return True
     except FirewallError:
         return False
+
+
+def status() -> tuple[str, str]:
+    """Состояние для интерфейса: (код, человеческое описание)."""
+    if not enabled():
+        return "off", (
+            "Управление файрволом выключено настройкой. Доступ к шаге с образами "
+            "ограничивается чем-то другим — убедись, что это так."
+        )
+    if available():
+        return "ok", "Окно доступа открывается на время монтирования."
+    return "broken", (
+        "Демон ipmi-fw-helper не отвечает. Монтирование не начнётся: открыть "
+        "доступ BMC к шаре некому."
+    )

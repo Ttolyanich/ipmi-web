@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import threading
+import time
 
 import requests
 from flask import current_app
@@ -40,6 +41,26 @@ def upload_dir() -> str:
     return path
 
 
+def free_space() -> int:
+    stat = os.statvfs(iso_dir())
+    return stat.f_bavail * stat.f_frsize
+
+
+def purge_stale_uploads(app, max_age_hours: int = 48) -> None:
+    """Убрать брошенные незавершённые загрузки.
+
+    Без этого каждая прерванная заливка навсегда занимает несколько гигабайт,
+    и однажды диск кончится ровно в момент, когда нужен новый образ.
+    """
+    with app.app_context():
+        directory = upload_dir()
+        deadline = time.time() - max_age_hours * 3600
+        for entry in os.scandir(directory):
+            if entry.is_file() and entry.stat().st_mtime < deadline:
+                os.remove(entry.path)
+                log.info("удалён брошенный кусок загрузки %s", entry.name)
+
+
 def too_big(size: int) -> bool:
     """Прошивка Supermicro отказывается монтировать образы больше 4.7 ГБ.
 
@@ -58,7 +79,10 @@ def scan() -> list[dict]:
     images = []
 
     for entry in sorted(os.scandir(directory), key=lambda e: e.name.lower()):
-        if not entry.is_file() or entry.name.startswith("."):
+        # .part — недокачанный файл. Показывать его нельзя: он выглядит как
+        # обычный образ, но смонтируется половина дистрибутива, и выяснится
+        # это уже во время установки.
+        if not entry.is_file() or entry.name.startswith(".") or entry.name.endswith(".part"):
             continue
         stat = entry.stat()
         seen.add(entry.name)
