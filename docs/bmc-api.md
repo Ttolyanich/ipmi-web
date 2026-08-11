@@ -5,8 +5,33 @@
 **Virtual Media → CD-ROM Image**.
 
 Всё делается через `POST https://<BMC>/cgi/op.cgi`, тело —
-`application/x-www-form-urlencoded`, авторизация — cookie `SID`, выдаваемая
-`login.cgi`.
+`application/x-www-form-urlencoded`. Требуется **двойная** авторизация: cookie
+`SID` от `login.cgi` **и** заголовок `CSRF_TOKEN`. Без второго прошивка отвечает
+`403 Forbidden` с пустым телом — по нему причину не угадать, поэтому вот она.
+
+## CSRF-токен
+
+Токен (32 символа) вшит в страницу `topmenu` вызовом из `js/utils.js`:
+
+```html
+<script>SmcCsrfInsert ("CSRF_TOKEN", "<32 символа>");</script>
+```
+
+Порядок получения:
+
+1. `POST /cgi/login.cgi` с `name` и `pwd` → cookie `SID`.
+2. `GET /cgi/url_redirect.cgi?url_name=topmenu` с этой cookie → вытащить токен
+   регулярным выражением из ответа.
+3. Все последующие `POST /cgi/op.cgi` — с cookie `SID` и заголовком
+   `CSRF_TOKEN: <токен>`.
+
+Морда шлёт ещё `X-Requested-With: XMLHttpRequest` и `X-Prototype-Version`
+(интерфейс написан на Prototype.js). На результат они не влияют, но первый
+стоит отправлять — так запрос неотличим от браузерного.
+
+Отдельно: в значении `SID` встречается обратный слэш (`O_yWJ...\Zk`). Хранить
+и подставлять его надо как есть — любая обработка, трактующая `\` как
+экранирование, побьёт сессию.
 
 Во всех запросах присутствуют два поля, к делу не относящиеся:
 `time_stamp` (строка даты в формате JS `Date`) и пустое `_`. Это защита от
@@ -60,6 +85,9 @@
 
 ## Воспроизведение без браузера
 
+Проверено целиком на живой машине 11.08.2026: статус → umount → статус →
+config → mount → статус, все шаги отработали.
+
 ```sh
 BMC=<адрес BMC>
 SHARE_HOST=<адрес хоста с шарой>
@@ -68,31 +96,38 @@ JAR=$(mktemp)
 # 1. Логин. Возвращает cookie SID.
 curl -sk -c "$JAR" -d "name=ADMIN&pwd=<пароль BMC>" "https://$BMC/cgi/login.cgi"
 
-# 2. Сохранить параметры образа.
-curl -sk -b "$JAR" "https://$BMC/cgi/op.cgi" \
-  --data-urlencode "op=config_iso" \
-  --data-urlencode "host=$SHARE_HOST" \
-  --data-urlencode 'path=\iso\test.iso' \
-  --data-urlencode "user=ikvm" \
-  --data-urlencode "pwd=<пароль шары>"
+# 2. Вытащить CSRF-токен со страницы topmenu.
+TOKEN=$(curl -sk -b "$JAR" "https://$BMC/cgi/url_redirect.cgi?url_name=topmenu" \
+        | grep -o 'SmcCsrfInsert *("CSRF_TOKEN", *"[^"]*"' \
+        | sed 's/.*"CSRF_TOKEN", *"//; s/"$//')
 
-# 3. Смонтировать.
-curl -sk -b "$JAR" "https://$BMC/cgi/op.cgi" --data-urlencode "op=mount_iso"
+call () {
+  curl -sk -b "$JAR" -H "CSRF_TOKEN: $TOKEN" -H "X-Requested-With: XMLHttpRequest" \
+       "https://$BMC/cgi/op.cgi" "$@"
+}
 
-# 4. Проверить статус.
-curl -sk -b "$JAR" "https://$BMC/cgi/op.cgi" --data-urlencode "op=vm_uiso_status"
+# 3. Сохранить параметры образа.
+call --data-urlencode "op=config_iso" \
+     --data-urlencode "host=$SHARE_HOST" \
+     --data-urlencode 'path=\iso\test.iso' \
+     --data-urlencode "user=ikvm" \
+     --data-urlencode "pwd=<пароль шары>"
 
-# 5. Размонтировать.
-curl -sk -b "$JAR" "https://$BMC/cgi/op.cgi" --data-urlencode "op=umount_iso"
+# 4. Смонтировать, проверить, размонтировать.
+call --data-urlencode "op=mount_iso"
+call --data-urlencode "op=vm_uiso_status"
+call --data-urlencode "op=umount_iso"
 ```
+
+Между `mount_iso` и запросом статуса нужна пауза в несколько секунд: BMC
+монтирует не мгновенно.
 
 `-k` обязателен, пока на BMC стоит просроченный самоподписанный сертификат.
 После его замены (шаг 2 в `docs/spike.md`) проверку можно включить.
 
 ## Не проверено
 
-- Формат полей `login.cgi`: перехват сделан на уже открытой сессии, поэтому имена
-  `name`/`pwd` взяты по общепринятой для этой линейки схеме. Часть прошивок
-  ожидает значения в base64. Проверяется первым же запуском сценария выше.
 - Поведение при попытке смонтировать образ больше 4.7 ГБ.
 - Что возвращает `mount_iso` при неуспехе — видели только `VMCOMCODE=001`.
+- Срок жизни сессии и токена: при истечении драйвер должен уметь перелогиниться
+  и повторить запрос.
