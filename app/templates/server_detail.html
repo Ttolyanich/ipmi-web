@@ -3,54 +3,127 @@
 
 {% block content %}
 <div class="head">
-    <h1>{{ server.name }}</h1>
-    <span class="mono muted">{{ server.address }}</span>
+    <div class="title-group">
+        <h1>{{ server.name }}</h1>
+        <span class="tag mono">{{ server.address }}</span>
+        <span class="tag">{{ server.vendor }}</span>
+    </div>
     <span class="spacer"></span>
-    <a class="button ghost" href="{{ server.console_link }}" target="_blank" rel="noopener">HTML5-консоль</a>
-    {% if user.is_admin %}<a class="button ghost" href="{{ url_for('servers.edit', server_id=server.id) }}">Правка</a>{% endif %}
+    <a class="button" href="{{ server.console_link }}" target="_blank" rel="noopener">
+        <svg style="width: 16px; height: 16px; fill: currentColor;" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/></svg>
+        HTML5-консоль
+    </a>
+    {% if user.is_admin %}
+    <a class="button ghost" href="{{ url_for('servers.edit', server_id=server.id) }}">Правка</a>
+    {% endif %}
+</div>
+
+{% if server.notes %}
+<p class="subtitle"><strong>Заметки:</strong> {{ server.notes }}</p>
+{% endif %}
+
+<!-- Emergency Recovery Workflow Guide -->
+<div class="workflow-bar">
+    <div class="workflow-title">
+        <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Порядок действий при восстановлении сервера
+    </div>
+    <div class="workflow-steps">
+        <div class="step-item {% if not mount %}active{% else %}completed{% endif %}">
+            <span class="step-number">1</span>
+            <span>Выбрать образ ISO</span>
+        </div>
+        <div class="step-item {% if mount %}active{% endif %}">
+            <span class="step-number">2</span>
+            <span>Смонтировать в BMC</span>
+        </div>
+        <div class="step-item">
+            <span class="step-number">3</span>
+            <span>Назначить загрузку c CD</span>
+        </div>
+        <div class="step-item">
+            <span class="step-number">4</span>
+            <span>Перезагрузить и открыть консоль</span>
+        </div>
+    </div>
 </div>
 
 {% if error %}
-    <div class="flash error">BMC не отвечает: {{ error }}</div>
+<div class="flash error" style="margin-bottom: 24px;">
+    <svg style="width: 20px; height: 20px; fill: currentColor; flex-shrink: 0;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+    <div>
+        <strong>BMC не отвечает:</strong> {{ error }}
+        <div style="font-size: 12px; margin-top: 4px; opacity: 0.9;">Состояние железа и слотов монтирования на сервере в данный момент неизвестно.</div>
+    </div>
+</div>
 {% endif %}
 
 <div class="grid">
+    <!-- Card 1: Hardware Status & Slots -->
     <div class="card">
-        <h2>Состояние</h2>
-        <dl>
-            <dt>Питание</dt><dd>{{ power or '—' }}</dd>
-            <dt>Слоты</dt>
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M22 9V7h-2V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2v-2h-2V9h2zm-4 10H4V5h14v14zM6 13h5v4H6v-4zm6 0h4v4h-4v-4zM6 7h10v4H6V7z"/></svg>
+            Состояние сервера
+        </h2>
+        <dl class="data-list">
+            <dt>Питание</dt>
+            <dd>
+                {% if power == 'on' %}
+                    <span class="tag ok">Включён (ON)</span>
+                {% elif power == 'off' %}
+                    <span class="tag danger">Выключен (OFF)</span>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </dd>
+
+            <dt>Слоты BMC</dt>
             <dd>
                 {% if slots %}
                     {% for slot in slots %}
                         <span class="tag {{ 'ok' if slot.mounted else '' }}">
-                            {{ slot.index }}: {{ 'смонтирован' if slot.mounted else 'пусто' }}
+                            Слот {{ slot.index }}: {{ 'смонтирован' if slot.mounted else 'пусто' }}
                         </span>
                     {% endfor %}
-                {% else %}—{% endif %}
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
             </dd>
+
             {% if mount %}
-            <dt>Образ</dt><dd>{{ mount.filename }}</dd>
-            <dt>Смонтировал</dt><dd>{{ mount.started_by }}, {{ mount.started_at|moment }}</dd>
-            <dt>Подтверждено</dt><dd>{{ mount.last_seen_at|moment }}</dd>
+            <dt>Смонтирован</dt>
+            <dd><strong style="color: var(--ok-text);">{{ mount.filename }}</strong></dd>
+
+            <dt>Смонтировал</dt>
+            <dd>{{ mount.started_by }}, {{ mount.started_at|moment }}</dd>
+
+            <dt>Подтверждено</dt>
+            <dd>{{ mount.last_seen_at|moment }}</dd>
             {% endif %}
         </dl>
-        <p class="hint">Состояние слотов опрошено у BMC, а не взято из базы.</p>
+        <p class="hint">Состояние слотов опрашивается напрямую у BMC при каждом открытии страницы.</p>
     </div>
 
+    <!-- Card 2: Mount Image -->
     <div class="card">
-        <h2>Образ</h2>
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+            Виртуальный ISO-образ
+        </h2>
         {% if mount %}
-            <p>Смонтирован <strong>{{ mount.filename }}</strong>.</p>
-            <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="danger">Отцепить</button>
-            </form>
+            <div class="active-mount-banner">
+                <p>Активно смонтирован образ: <strong>{{ mount.filename }}</strong></p>
+                <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="button danger">Отцепить образ</button>
+                </form>
+            </div>
         {% else %}
             <form method="post" action="{{ url_for('servers.mount', server_id=server.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Из библиотеки
+                <label>Выберите ISO из библиотеки
                     <select name="filename" required>
+                        <option value="" disabled selected>-- Выберите образ --</option>
                         {% for image in images %}
                         <option value="{{ image.filename }}" {% if image.too_big %}disabled{% endif %}>
                             {{ image.filename }} — {{ image.size|bytes }}{% if image.too_big %} (больше 4.7 ГБ){% endif %}
@@ -58,60 +131,102 @@
                         {% endfor %}
                     </select>
                 </label>
-                <button type="submit">Смонтировать</button>
+                <button type="submit" class="button" style="width: 100%;">Смонтировать образ</button>
             </form>
-            <p class="hint">Образы больше 4.7 ГБ недоступны: прошивка BMC их не принимает.</p>
-            <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="link">отцепить образ, смонтированный мимо сервиса</button>
-            </form>
+            <p class="hint">Образы больше 4.7 ГБ недоступны для выбора (ограничение прошивки BMC).</p>
+            
+            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border);">
+                <form method="post" action="{{ url_for('servers.unmount', server_id=server.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="button link muted" style="font-size: 12px;">Отцепить образ, смонтированный мимо сервиса</button>
+                </form>
+            </div>
         {% endif %}
     </div>
 
+    <!-- Card 3: Boot & Power Control -->
     <div class="card">
-        <h2>Загрузка и питание</h2>
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+            Загрузка и питание
+        </h2>
+        
         <form method="post" action="{{ url_for('servers.boot_override', server_id=server.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Следующая загрузка, однократно
+            <label>Однократная загрузка (Boot Override)
                 <select name="target">
-                    <option value="cdrom">CD-ROM (виртуальный образ)</option>
-                    <option value="disk">Диск</option>
-                    <option value="pxe">Сеть (PXE)</option>
-                    <option value="bios">BIOS Setup</option>
+                    <option value="cdrom" selected>CD-ROM (Виртуальный ISO-образ)</option>
+                    <option value="disk">Диск (Основной накопитель)</option>
+                    <option value="pxe">Сеть (PXE Boot)</option>
+                    <option value="bios">BIOS Setup (Настройки планов)</option>
                 </select>
             </label>
-            <button type="submit">Назначить</button>
+            <button type="submit" class="button secondary" style="width: 100%;">Назначить загрузку</button>
         </form>
-        <p class="hint">Флаг одноразовый: BMC сбросит его после первой загрузки, иначе установка зациклится.</p>
+        <p class="hint">Флаг сбросится автоматически после первой загрузки, чтобы не зациклить установку.</p>
 
-        <form method="post" action="{{ url_for('servers.power', server_id=server.id) }}"
-              onsubmit="return confirm('Действие с питанием боевого сервера. Продолжить?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="row">
-                <button name="action" value="on">Включить</button>
-                <button name="action" value="soft">Мягко выключить</button>
-                <button name="action" value="reset" class="danger">Reset</button>
-                <button name="action" value="off" class="danger">Обесточить</button>
+        <!-- Danger Zone for Power Actions -->
+        <div class="danger-panel">
+            <div class="danger-panel-title">
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                Управление питанием
             </div>
-        </form>
+            
+            <form method="post" action="{{ url_for('servers.power', server_id=server.id) }}"
+                  onsubmit="return confirm('Выполняется действие с питанием боевого сервера! Вы уверены?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <button type="submit" name="action" value="on" class="button secondary">Включить</button>
+                    <button type="submit" name="action" value="soft" class="button secondary">Мягко выключить</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button type="submit" name="action" value="reset" class="button danger">Reset</button>
+                    <button type="submit" name="action" value="off" class="button danger">Обесточить</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
+<!-- History Table Card -->
 <div class="card">
-    <h2>История монтирований</h2>
+    <h2>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        История монтирований
+    </h2>
     {% if not history %}
-        <p class="muted">Пока пусто.</p>
+        <div class="empty-state">
+            <p>История монтирований на этом сервере пока пуста.</p>
+        </div>
     {% else %}
     <table>
-        <thead><tr><th>Образ</th><th>Кто</th><th>Начало</th><th>Конец</th><th>Состояние</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Образ</th>
+                <th>Администратор</th>
+                <th>Начало</th>
+                <th>Завершено</th>
+                <th>Результат</th>
+            </tr>
+        </thead>
         <tbody>
         {% for row in history %}
         <tr>
-            <td>{{ row.filename }}</td>
+            <td><strong>{{ row.filename }}</strong></td>
             <td>{{ row.started_by or '—' }}</td>
             <td>{{ row.started_at|moment }}</td>
             <td>{{ row.ended_at|moment }}</td>
-            <td>{{ row.state }}{% if row.error %} <span class="muted">({{ row.error }})</span>{% endif %}</td>
+            <td>
+                {% if row.state == 'active' %}
+                    <span class="tag ok">активно</span>
+                {% elif row.state == 'completed' or row.state == 'unmounted' %}
+                    <span class="tag">{{ row.state }}</span>
+                {% else %}
+                    <span class="tag danger">{{ row.state }}</span>
+                {% endif %}
+                {% if row.error %}<span class="muted small">({{ row.error }})</span>{% endif %}
+            </td>
         </tr>
         {% endfor %}
         </tbody>

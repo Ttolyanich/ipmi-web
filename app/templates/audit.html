@@ -2,26 +2,58 @@
 {% block title %}Журнал — ipmi-web{% endblock %}
 
 {% block content %}
-<h1>Журнал действий</h1>
+<div class="head">
+    <div>
+        <h1>Журнал аудита действий</h1>
+        <p class="subtitle">Полная история авторизаций, изменений настроек, монтирований и действий с питанием</p>
+    </div>
+</div>
 
-<table>
-    <thead><tr><th>Когда</th><th>Кто</th><th>Откуда</th><th>Действие</th><th>Сервер</th><th>Подробности</th></tr></thead>
-    <tbody>
-    {% for entry in entries %}
-    <tr>
-        <td>{{ entry.ts|moment }}</td>
-        <td>{{ entry.username }}</td>
-        <td class="mono small">{{ entry.ip }}</td>
-        <td>{{ entry.action }}</td>
-        <td>{{ entry.server_name or '—' }}</td>
-        <td>{{ entry.detail or '—' }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Время (МСК)</th>
+                <th>Пользователь</th>
+                <th>IP-адрес</th>
+                <th>Действие</th>
+                <th>Сервер</th>
+                <th>Подробности</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td style="white-space: nowrap;">{{ entry.ts|moment }}</td>
+            <td><strong>{{ entry.username }}</strong></td>
+            <td><span class="tag mono small">{{ entry.ip }}</span></td>
+            <td>
+                {% if 'mount' in entry.action or 'boot' in entry.action %}
+                    <span class="tag ok">{{ entry.action }}</span>
+                {% elif 'power' in entry.action or 'delete' in entry.action %}
+                    <span class="tag danger">{{ entry.action }}</span>
+                {% else %}
+                    <span class="tag">{{ entry.action }}</span>
+                {% endif %}
+            </td>
+            <td>{{ entry.server_name or '—' }}</td>
+            <td class="muted small">{{ entry.detail or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 
-<div class="row">
-    {% if page > 1 %}<a href="{{ url_for('audit_log.index', page=page-1) }}">← новее</a>{% endif %}
-    {% if entries|length == 100 %}<a href="{{ url_for('audit_log.index', page=page+1) }}">старее →</a>{% endif %}
+    <div class="row" style="margin-top: 20px; justify-content: space-between;">
+        <div>
+            {% if page > 1 %}
+                <a class="button ghost" href="{{ url_for('audit_log.index', page=page-1) }}">← Новее</a>
+            {% endif %}
+        </div>
+        <div>
+            {% if entries|length == 100 %}
+                <a class="button ghost" href="{{ url_for('audit_log.index', page=page+1) }}">Старее →</a>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}

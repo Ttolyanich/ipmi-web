@@ -1,38 +1,67 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Правка' if server else 'Новый сервер' }} — ipmi-web{% endblock %}
+{% block title %}{{ 'Правка сервера' if server else 'Новый сервер' }} — ipmi-web{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="card narrow" style="max-width: 600px;">
     <h1>{{ 'Правка сервера' if server else 'Новый сервер' }}</h1>
+    <p class="subtitle">{{ 'Изменение параметров подключения и настроек BMC' if server else 'Добавление нового сервера под управление ipmi-web' }}</p>
+    
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Имя<input name="name" value="{{ server.name if server }}" required></label>
-        <label>Адрес BMC<input name="address" value="{{ server.address if server }}" required></label>
-        <label>Вендор
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <label>Имя сервера
+                <input name="name" value="{{ server.name if server }}" placeholder="srv-app-01" required>
+            </label>
+            
+            <label>IP-адрес или Hostname BMC
+                <input name="address" value="{{ server.address if server }}" placeholder="192.168.1.100" required>
+            </label>
+        </div>
+
+        <label>Вендор платформы
             <select name="vendor">
                 {% for vendor in vendors %}
                 <option value="{{ vendor }}" {% if server and server.vendor == vendor %}selected{% endif %}>{{ vendor }}</option>
                 {% endfor %}
             </select>
         </label>
-        <label>Пользователь BMC<input name="bmc_user" value="{{ server.bmc_user if server else 'ADMIN' }}"></label>
-        <label>Пароль BMC
-            <input type="password" name="bmc_password" autocomplete="new-password"
-                   {% if not server %}required{% endif %}>
-            {% if server %}<span class="hint">пусто — оставить прежний</span>{% endif %}
-        </label>
-        <label>Ссылка на консоль<input name="console_url" value="{{ server.console_url or '' if server }}"
-                                       placeholder="по умолчанию https://адрес/"></label>
-        <label>Заметки<textarea name="notes" rows="3">{{ server.notes or '' if server }}</textarea></label>
-        <button type="submit">Сохранить</button>
-    </form>
-</div>
 
-{% if server %}
-<form method="post" action="{{ url_for('servers.delete', server_id=server.id) }}"
-      onsubmit="return confirm('Удалить сервер {{ server.name }}?')">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="danger">Удалить сервер</button>
-</form>
-{% endif %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <label>Пользователь BMC
+                <input name="bmc_user" value="{{ server.bmc_user if server else 'ADMIN' }}" required>
+            </label>
+            
+            <label>Пароль BMC
+                <input type="password" name="bmc_password" autocomplete="new-password" {% if not server %}required{% endif %}>
+                {% if server %}<span class="hint">Оставьте пустым, чтобы сохранить прежний пароль</span>{% endif %}
+            </label>
+        </div>
+
+        <label>Прямая ссылка на HTML5-консоль (необязательно)
+            <input name="console_url" value="{{ server.console_url or '' if server }}" placeholder="По умолчанию: https://адрес_bmc/">
+        </label>
+
+        <label>Заметки / Описание
+            <textarea name="notes" rows="3" placeholder="Назначение сервера, стойка, особенности...">{{ server.notes or '' if server }}</textarea>
+        </label>
+
+        <div class="row" style="margin-top: 20px; justify-content: space-between;">
+            <button type="submit" class="button">Сохранить сервер</button>
+            <a href="{{ url_for('servers.detail', server_id=server.id) if server else url_for('servers.index') }}" class="button ghost">Отмена</a>
+        </div>
+    </form>
+
+    {% if server %}
+    <div class="danger-panel" style="margin-top: 32px;">
+        <div class="danger-panel-title">Опасная зона</div>
+        <p class="hint" style="margin-top: 0; margin-bottom: 12px;">Удаление сервера сотрет конфигурацию и историю монтирований. Удаление невозможно при активном монтировании.</p>
+        <form method="post" action="{{ url_for('servers.delete', server_id=server.id) }}"
+              onsubmit="return confirm('Удалить сервер {{ server.name }} из системы?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="button danger">Удалить сервер</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

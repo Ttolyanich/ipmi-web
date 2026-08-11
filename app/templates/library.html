@@ -2,40 +2,85 @@
 {% block title %}Образы — ipmi-web{% endblock %}
 
 {% block content %}
-<h1>Библиотека образов</h1>
+<div class="head">
+    <div>
+        <h1>Библиотека ISO-образов</h1>
+        <p class="subtitle">Хранилище дистрибутивов для монтирования через BMC</p>
+    </div>
+</div>
 
 <div class="grid">
+    <!-- Card 1: Resumable File Upload -->
     <div class="card">
-        <h2>Загрузить с компьютера</h2>
-        <input type="file" id="file" accept=".iso">
-        <button id="upload" disabled>Загрузить</button>
-        <div id="progress" class="hint"></div>
-        <p class="hint">Файл режется на куски: обрыв связи не начинает загрузку заново.</p>
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+            Загрузить с компьютера
+        </h2>
+        <label>Выберите файл .iso
+            <input type="file" id="file" accept=".iso">
+        </label>
+        <button id="upload" class="button" style="width: 100%; margin-top: 10px;" disabled>Загрузить файл</button>
+        <div id="progress" class="hint" style="margin-top: 12px; font-weight: 500; color: var(--text-primary);"></div>
+        <p class="hint">Файл загружается частями по 8 МБ. При обрыве связи загрузка продолжится с места остановки.</p>
     </div>
 
+    <!-- Card 2: Background URL Download -->
     <div class="card">
-        <h2>Скачать по ссылке</h2>
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Скачать по прямой ссылке
+        </h2>
         <form method="post" action="{{ url_for('library.download') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Адрес образа<input name="url" placeholder="https://..." required></label>
-            <label>Имя файла<input name="filename" placeholder="необязательно"></label>
-            <button type="submit">Скачать</button>
+            <label>URL-адрес ISO-образа
+                <input name="url" placeholder="https://example.com/ubuntu-22.04-live-server-amd64.iso" required>
+            </label>
+            <label>Сохранить как (имя файла)
+                <input name="filename" placeholder="необязательно, например ubuntu-22.04.iso">
+            </label>
+            <button type="submit" class="button secondary" style="width: 100%;">Запустить скачивание</button>
         </form>
-        <p class="hint">Качает сервер, а не твой браузер — канал обычно толще.</p>
+        <p class="hint">Файл скачивается напрямую сервером в фоновом режиме (полезно для быстрого гигабитного канала).</p>
     </div>
 </div>
 
 {% if jobs %}
 <div class="card">
-    <h2>Скачивания</h2>
+    <h2>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+        Активные фоновые скачивания
+    </h2>
     <table>
-        <thead><tr><th>Файл</th><th>Состояние</th><th>Прогресс</th><th>Когда</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Имя файла</th>
+                <th>Статус</th>
+                <th>Прогресс</th>
+                <th>Запущено</th>
+            </tr>
+        </thead>
         <tbody>
         {% for job in jobs %}
         <tr>
-            <td>{{ job.filename }}</td>
-            <td>{{ job.status }}{% if job.error %} <span class="muted">{{ job.error }}</span>{% endif %}</td>
-            <td>{{ job.percent }}% ({{ job.downloaded|bytes }})</td>
+            <td><strong>{{ job.filename }}</strong></td>
+            <td>
+                {% if job.status == 'done' %}
+                    <span class="tag ok">готово</span>
+                {% elif job.status == 'running' %}
+                    <span class="tag warn">скачивается</span>
+                {% elif job.status == 'error' %}
+                    <span class="tag danger">ошибка</span>
+                    {% if job.error %}<span class="muted small">({{ job.error }})</span>{% endif %}
+                {% else %}
+                    <span class="tag">{{ job.status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <div>{{ job.percent }}% ({{ job.downloaded|bytes }})</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" style="width: {{ job.percent }}%;"></div>
+                </div>
+            </td>
             <td>{{ job.created_at|moment }}</td>
         </tr>
         {% endfor %}
@@ -45,35 +90,59 @@
 {% endif %}
 
 <div class="card">
-    <h2>Образы</h2>
+    <h2>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        Файлы в библиотеке
+    </h2>
     {% if not images %}
-        <p class="muted">Библиотека пуста.</p>
+        <div class="empty-state">
+            <p>Библиотека ISO-образов пуста.</p>
+        </div>
     {% else %}
     <table>
-        <thead><tr><th>Файл</th><th>Размер</th><th>SHA256</th><th></th></tr></thead>
+        <thead>
+            <tr>
+                <th>Имя файла</th>
+                <th>Размер</th>
+                <th>SHA256 Хэш</th>
+                <th style="text-align: right;">Действия</th>
+            </tr>
+        </thead>
         <tbody>
         {% for image in images %}
         <tr>
             <td>
-                {{ image.filename }}
-                {% if image.too_big %}<span class="tag warn">больше 4.7 ГБ, BMC не примет</span>{% endif %}
-            </td>
-            <td>{{ image.size|bytes }}</td>
-            <td class="mono small">{{ image.sha256 or '—' }}</td>
-            <td class="row">
-                {% if not image.sha256 %}
-                <form method="post" action="{{ url_for('library.rehash') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="filename" value="{{ image.filename }}">
-                    <button class="link">посчитать хэш</button>
-                </form>
+                <strong style="font-size: 14px;">{{ image.filename }}</strong>
+                {% if image.too_big %}
+                    <div style="margin-top: 4px;">
+                        <span class="tag warn">больше 4.7 ГБ (BMC не примет)</span>
+                    </div>
                 {% endif %}
-                <form method="post" action="{{ url_for('library.delete') }}"
-                      onsubmit="return confirm('Удалить {{ image.filename }}?')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="filename" value="{{ image.filename }}">
-                    <button class="link danger">удалить</button>
-                </form>
+            </td>
+            <td><span class="tag mono">{{ image.size|bytes }}</span></td>
+            <td>
+                {% if image.sha256 %}
+                    <span class="mono small muted">{{ image.sha256 }}</span>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td style="text-align: right;">
+                <div class="row" style="justify-content: flex-end;">
+                    {% if not image.sha256 %}
+                    <form method="post" action="{{ url_for('library.rehash') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="filename" value="{{ image.filename }}">
+                        <button type="submit" class="button link">посчитать хэш</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('library.delete') }}"
+                          onsubmit="return confirm('Удалить образ {{ image.filename }} из библиотеки?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="filename" value="{{ image.filename }}">
+                        <button type="submit" class="button link danger">удалить</button>
+                    </form>
+                </div>
             </td>
         </tr>
         {% endfor %}

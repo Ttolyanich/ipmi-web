@@ -2,46 +2,92 @@
 {% block title %}Пользователи — ipmi-web{% endblock %}
 
 {% block content %}
-<h1>Пользователи</h1>
-<p class="hint">Учётные записи именные: обезличенный журнал не имеет смысла.</p>
-
-<div class="card">
-    <h2>Добавить</h2>
-    <form method="post" action="{{ url_for('auth.create_user') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Логин<input name="username" required></label>
-        <label>Пароль<input type="password" name="password" required
-                            minlength="{{ config.MIN_PASSWORD_LENGTH }}"></label>
-        <label class="inline"><input type="checkbox" name="is_admin"> администратор</label>
-        <button type="submit">Создать</button>
-    </form>
+<div class="head">
+    <div>
+        <h1>Управление пользователями</h1>
+        <p class="subtitle">Учётные записи именные: обезличенный журнал действий не имеет смысла</p>
+    </div>
 </div>
 
-<div class="card">
-    <table>
-        <thead><tr><th>Логин</th><th>Роль</th><th>Последний вход</th><th>Состояние</th><th></th></tr></thead>
-        <tbody>
-        {% for row in users %}
-        <tr>
-            <td>{{ row.username }}</td>
-            <td>{{ 'администратор' if row.is_admin else 'оператор' }}</td>
-            <td>{{ row.last_login_at|moment }}</td>
-            <td>{{ 'отключён' if row.disabled else 'активен' }}</td>
-            <td class="row">
-                <form method="post" action="{{ url_for('auth.toggle_user', user_id=row.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="link">{{ 'включить' if row.disabled else 'отключить' }}</button>
-                </form>
-                <form method="post" action="{{ url_for('auth.reset_password', user_id=row.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="password" name="password" placeholder="новый пароль"
-                           minlength="{{ config.MIN_PASSWORD_LENGTH }}">
-                    <button class="link">сменить</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div class="grid">
+    <!-- Card 1: Add User Form -->
+    <div class="card">
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Создать пользователя
+        </h2>
+        <form method="post" action="{{ url_for('auth.create_user') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Логин
+                <input name="username" placeholder="ivanov" required>
+            </label>
+            <label>Пароль (мин. {{ config.MIN_PASSWORD_LENGTH }} символов)
+                <input type="password" name="password" required minlength="{{ config.MIN_PASSWORD_LENGTH }}">
+            </label>
+            <label class="inline" style="margin-top: 10px; margin-bottom: 16px;">
+                <input type="checkbox" name="is_admin">
+                <span>Права администратора</span>
+            </label>
+            <button type="submit" class="button" style="width: 100%;">Создать пользователя</button>
+        </form>
+    </div>
+
+    <!-- Card 2: User List Table -->
+    <div class="card" style="grid-column: span 2;">
+        <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            Список пользователей
+        </h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Логин</th>
+                    <th>Роль</th>
+                    <th>Последний вход</th>
+                    <th>Статус</th>
+                    <th style="text-align: right;">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in users %}
+            <tr>
+                <td><strong>{{ row.username }}</strong></td>
+                <td>
+                    {% if row.is_admin %}
+                        <span class="tag warn">администратор</span>
+                    {% else %}
+                        <span class="tag">оператор</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.last_login_at|moment }}</td>
+                <td>
+                    {% if row.disabled %}
+                        <span class="tag danger">отключён</span>
+                    {% else %}
+                        <span class="tag ok">активен</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <div class="row" style="justify-content: flex-end; gap: 12px;">
+                        <form method="post" action="{{ url_for('auth.toggle_user', user_id=row.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="button link {{ 'ok' if row.disabled else 'danger' }}">
+                                {{ 'включить' if row.disabled else 'отключить' }}
+                            </button>
+                        </form>
+                        
+                        <form method="post" action="{{ url_for('auth.reset_password', user_id=row.id) }}" class="row" style="gap: 6px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="password" name="password" placeholder="новый пароль"
+                                   minlength="{{ config.MIN_PASSWORD_LENGTH }}" style="width: 130px; margin: 0; padding: 4px 8px; font-size: 12px;">
+                            <button type="submit" class="button ghost" style="padding: 4px 8px; font-size: 12px;">сменить</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
