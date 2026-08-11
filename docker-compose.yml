@@ -6,6 +6,9 @@ services:
   # правила фильтрации в input его не увидят, и 445 окажется открыт всему
   # интернету. См. DECISIONS.md.
   samba:
+    # Штатный путь — docker compose pull, образ собирает Actions в ghcr.
+    # build оставлен для локальной пересборки: docker compose up -d --build
+    image: ghcr.io/ttolyanich/ipmi-web-samba:latest
     build: ./docker/samba
     container_name: ipmi-smb
     network_mode: host
